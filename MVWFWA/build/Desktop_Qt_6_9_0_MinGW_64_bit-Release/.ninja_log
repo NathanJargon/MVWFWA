@@ -1,0 +1,9 @@
+# ninja log v6
+14	1326	7685490670598750	MVWFWA_autogen/timestamp	51086a7da0a41cc8
+14	1326	7685490670598750	MVWFWA_autogen/mocs_compilation.cpp	51086a7da0a41cc8
+14	1326	7685490670598750	C:/Nash/Projects/MVWFWAlgorithm/MVWFWA/build/Desktop_Qt_6_9_0_MinGW_64_bit-Release/MVWFWA_autogen/timestamp	51086a7da0a41cc8
+14	1326	7685490670598750	C:/Nash/Projects/MVWFWAlgorithm/MVWFWA/build/Desktop_Qt_6_9_0_MinGW_64_bit-Release/MVWFWA_autogen/mocs_compilation.cpp	51086a7da0a41cc8
+1339	4521	7685490672054738	CMakeFiles/MVWFWA.dir/MVWFWA_autogen/mocs_compilation.cpp.obj	c81425e7a827edbd
+1347	4582	7685490672144960	CMakeFiles/MVWFWA.dir/main.cpp.obj	c96c89ef0d5ed2e
+1353	7100	7685490672214962	CMakeFiles/MVWFWA.dir/mainwindow.cpp.obj	c2facce7c6bb1272
+7100	7256	7685490729681992	MVWFWA.exe	9e093449f5f7791e

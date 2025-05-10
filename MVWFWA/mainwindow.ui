@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1280</width>
+    <height>720</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Modified Vertex-Weight Floyd-Warshall</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QTableWidget" name="tableWidget1"/> <!-- Table 1 -->
+    </item>
+    <item>
+     <widget class="QTableWidget" name="tableWidget2"/> <!-- Table 2 -->
+    </item>
+    <item>
+     <widget class="QLabel" name="orderLabel">
+      <property name="text">
+       <string>Execution Time: </string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignLeft</set>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="buttonLayout">
+      <item>
+       <widget class="QPushButton" name="runButton">
+        <property name="text">
+         <string>Run</string>
+        </property>
+        <property name="styleSheet">
+         <string>background-color: green; color: white; font-weight: bold;</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="fileButton">
+        <property name="text">
+         <string>Dataset File</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar"/>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
