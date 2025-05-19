@@ -9,6 +9,7 @@
 #include <sstream>
 #include <queue>
 #include <limits>
+#include <algorithm>
 
 const int INF = std::numeric_limits<int>::max();
 
@@ -46,8 +47,12 @@ void MainWindow::onFileButtonClicked() {
     }
 }
 
+// Add this member to your MainWindow class:
+// std::vector<std::string> courseOrder;
+
 std::map<std::string, Course> MainWindow::readCurriculum(const std::string& filename) {
     std::map<std::string, Course> courses;
+    courseOrder.clear(); // <-- clear previous order
     std::ifstream file(filename);
     std::string line;
 
@@ -96,12 +101,15 @@ std::map<std::string, Course> MainWindow::readCurriculum(const std::string& file
         }
 
         courses[name] = course;
+        courseOrder.push_back(name); // <-- preserve order
     }
 
     return courses;
 }
 
+// Helper: Try all combinations of available courses to get as close as possible to 24 or 23 credits
 std::vector<std::vector<std::string>> MainWindow::groupCoursesBySemester(const std::map<std::string, Course>& courses) {
+    const int maxCreditsPerSemester = 24; // or 23 if you prefer
     std::map<std::string, int> inDegree;
     std::map<std::string, std::vector<std::string>> graph;
     std::vector<std::vector<std::string>> semesters;
@@ -116,40 +124,45 @@ std::vector<std::vector<std::string>> MainWindow::groupCoursesBySemester(const s
         }
     }
 
-    std::queue<std::string> readyQueue;
-    for (const auto& [course, degree] : inDegree) {
-        if (degree == 0) {
-            readyQueue.push(course);
+    std::set<std::string> completed;
+    while (completed.size() < courses.size()) {
+        // Find all available courses in CSV order
+        std::vector<std::string> available;
+        for (const auto& name : courseOrder) {
+            if (inDegree[name] == 0 && completed.find(name) == completed.end()) {
+                available.push_back(name);
+            }
         }
-    }
 
-    while (!readyQueue.empty()) {
+        // Greedily select courses up to the credit limit
         std::vector<std::string> semester;
-        int semesterCredits = 0;
+        int creditSum = 0;
+        for (const auto& name : available) {
+            int c = courses.at(name).credits;
+            if (creditSum + c <= maxCreditsPerSemester) {
+                semester.push_back(name);
+                creditSum += c;
+            }
+        }
 
-        std::queue<std::string> nextQueue;
-        while (!readyQueue.empty()) {
-            std::string course = readyQueue.front();
-            readyQueue.pop();
-
-            int courseCredits = courses.at(course).credits;
-            if (semesterCredits + courseCredits <= 24) {
-                semester.push_back(course);
-                semesterCredits += courseCredits;
-
-                for (const auto& neighbor : graph[course]) {
-                    inDegree[neighbor]--;
-                    if (inDegree[neighbor] == 0) {
-                        nextQueue.push(neighbor);
-                    }
-                }
+        if (semester.empty()) {
+            // If no course fits, just take the first available (to avoid infinite loop)
+            if (!available.empty()) {
+                semester.push_back(available[0]);
             } else {
-                nextQueue.push(course);
+                break;
             }
         }
 
         semesters.push_back(semester);
-        readyQueue = nextQueue;
+
+        // Mark as completed and update inDegree
+        for (const auto& course : semester) {
+            completed.insert(course);
+            for (const auto& neighbor : graph[course]) {
+                inDegree[neighbor]--;
+            }
+        }
     }
 
     return semesters;
@@ -181,29 +194,18 @@ void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {
     ui->tableWidget1->clear();
 
     // Set the number of rows and columns
-    ui->tableWidget1->setRowCount(3); // Rows: Course, Credits, Prerequisites
-    ui->tableWidget1->setColumnCount(courses.size()); // One column per course
+    ui->tableWidget1->setRowCount(courses.size());
+    ui->tableWidget1->setColumnCount(3); // Name, Credits, Prerequisites
 
-    // Set headers for columns (course names)
-    QStringList headers;
-    for (const auto& [courseName, course] : courses) {
-        headers << QString::fromStdString(courseName);
-    }
-    ui->tableWidget1->setHorizontalHeaderLabels(headers);
-
-    // Set headers for rows
-    ui->tableWidget1->setVerticalHeaderLabels({"Course", "Credits", "Prerequisites"});
+    // Set headers for columns
+    ui->tableWidget1->setHorizontalHeaderLabels({"Course", "Credits", "Prerequisites"});
 
     // Populate the table
-    int col = 0;
+    int row = 0;
     for (const auto& [courseName, course] : courses) {
-        // Row 1: Course Name
-        ui->tableWidget1->setItem(0, col, new QTableWidgetItem(QString::fromStdString(course.name)));
+        ui->tableWidget1->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(course.name)));
+        ui->tableWidget1->setItem(row, 1, new QTableWidgetItem(QString::number(course.credits)));
 
-        // Row 2: Credits
-        ui->tableWidget1->setItem(1, col, new QTableWidgetItem(QString::number(course.credits)));
-
-        // Row 3: Prerequisites
         QString prerequisites;
         for (const auto& prereq : course.prerequisites) {
             prerequisites += QString::fromStdString(prereq) + "; ";
@@ -211,18 +213,13 @@ void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {
         if (!prerequisites.isEmpty()) {
             prerequisites.chop(2); // Remove trailing "; "
         }
-        ui->tableWidget1->setItem(2, col, new QTableWidgetItem(prerequisites));
-
-        col++;
+        ui->tableWidget1->setItem(row, 2, new QTableWidgetItem(prerequisites));
+        row++;
     }
 
     // Stretch columns to fit the entire width
     ui->tableWidget1->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-
-    // Stretch rows to fit the entire height
-    ui->tableWidget1->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-
-    // Resize rows to fit content
+    ui->tableWidget1->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->tableWidget1->resizeRowsToContents();
 }
 
@@ -235,7 +232,7 @@ void MainWindow::populateTable2(const std::vector<std::vector<std::string>>& sem
     for (const auto& semester : semesters) {
         maxCoursesInSemester = std::max(maxCoursesInSemester, static_cast<int>(semester.size()));
     }
-    ui->tableWidget2->setColumnCount(maxCoursesInSemester + 1); // +1 for the "Credits" column
+    ui->tableWidget2->setColumnCount(maxCoursesInSemester + 2); // +1 for "Total Credits", +1 for "Semester Label"
 
     // Set headers
     QStringList headers;
@@ -246,16 +243,37 @@ void MainWindow::populateTable2(const std::vector<std::vector<std::string>>& sem
     headers << "Total Credits";
     ui->tableWidget2->setHorizontalHeaderLabels(headers);
 
-    // Populate the table with semester data
+    // Helper for ordinal numbers
+    auto ordinal = [](int n) {
+        if (n % 10 == 1 && n % 100 != 11) return QString::number(n) + "st";
+        if (n % 10 == 2 && n % 100 != 12) return QString::number(n) + "nd";
+        if (n % 10 == 3 && n % 100 != 13) return QString::number(n) + "rd";
+        return QString::number(n) + "th";
+    };
+
+    int year = 1, term = 1, summerCount = 0;
     for (int i = 0; i < semesters.size(); ++i) {
         int totalCredits = 0;
-        ui->tableWidget2->setItem(i, 0, new QTableWidgetItem("Semester " + QString::number(i + 1)));
+        QString label;
+
+        // Check for summer (CS331 only)
+        if (semesters[i].size() == 1 && semesters[i][0] == "CS331") {
+            summerCount++;
+            label = QString::number(year + summerCount - 1) + "rd Year - Summer";
+        } else {
+            label = ordinal(year) + " Year - " + ordinal(term) + " Semester";
+            term++;
+            if (term > 2) {
+                year++;
+                term = 1;
+            }
+        }
+
+        ui->tableWidget2->setItem(i, 0, new QTableWidgetItem(label));
 
         for (int j = 0; j < semesters[i].size(); ++j) {
             const auto& courseName = semesters[i][j];
             ui->tableWidget2->setItem(i, j + 1, new QTableWidgetItem(QString::fromStdString(courseName)));
-
-            // Calculate total credits for the semester
             totalCredits += courses.at(courseName).credits;
         }
 
@@ -265,9 +283,6 @@ void MainWindow::populateTable2(const std::vector<std::vector<std::string>>& sem
 
     // Stretch columns to fit the entire width
     ui->tableWidget2->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-
     ui->tableWidget2->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-
-    // Resize rows to fit content
     ui->tableWidget2->resizeRowsToContents();
 }

@@ -31,6 +31,7 @@ private:
     Ui::MainWindow *ui;
     QString selectedFile;
 
+    std::vector<std::string> courseOrder;
     std::map<std::string, Course> readCurriculum(const std::string& filename);
     std::vector<std::vector<std::string>> groupCoursesBySemester(const std::map<std::string, Course>& courses);
     void populateTable1(const std::map<std::string, Course>& courses);

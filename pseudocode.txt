@@ -1,0 +1,39 @@
+Input: List of courses (name, credits, prerequisites), maxCreditsPerSemester
+Output: Semester wise course schedule
+
+ procedure GENERATE SCHEDULE (Courses, maxCreditsPerSemester)
+     for each course in Courses do
+         inDegree[course] ← 0
+         courseCredits[course] ← course.credits
+     end for
+     for each course in Courses do
+         for each prereq in course.prerequisites do
+             adj[prereq] ← adj[prereq] ∪ {course.name}
+             inDegree[course.name] ← inDegree[course.name] + 1
+        end for
+    end for
+    readyQueue ← {course | inDegree[course] = 0}
+    schedule ← []
+    while readyQueue ≠ ∅ do
+        semester ← [], semesterCredits ← 0
+        nextQueue ← ∅
+        for each course in readyQueue do
+            if semesterCredits + courseCredits[course] ≤ maxCreditsPerSemester then
+                semester ← semester ∪ {course}
+                semesterCredits ← semesterCredits + courseCredits[course]
+                for each dependent in adj[course] do
+                    inDegree[dependent] ← inDegree[dependent] - 1
+                    if inDegree[dependent] = 0 then
+                        nextQueue ← nextQueue ∪ {dependent}
+                    end if
+                end for
+            else
+                nextQueue ← nextQueue ∪ {course}
+            end if
+        end for
+        schedule ← schedule ∪ {semester}
+        readyQueue ← nextQueue
+    end while
+    return schedule
+ end procedure
+
