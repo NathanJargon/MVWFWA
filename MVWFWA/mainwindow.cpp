@@ -168,6 +168,45 @@ std::vector<std::vector<std::string>> MainWindow::groupCoursesBySemester(const s
     return semesters;
 }
 
+std::vector<std::vector<std::string>> MainWindow::groupCoursesBySemesterShortest(const std::map<std::string, Course>& courses) {
+    std::map<std::string, int> inDegree;
+    std::map<std::string, std::vector<std::string>> graph;
+    std::vector<std::vector<std::string>> semesters;
+
+    for (const auto& [course, data] : courses) {
+        inDegree[course] = 0;
+    }
+    for (const auto& [course, data] : courses) {
+        for (const auto& prereq : data.prerequisites) {
+            graph[prereq].push_back(course);
+            inDegree[course]++;
+        }
+    }
+
+    std::set<std::string> completed;
+    while (completed.size() < courses.size()) {
+        std::vector<std::string> available;
+        for (const auto& name : courseOrder) {
+            if (inDegree[name] == 0 && completed.find(name) == completed.end()) {
+                available.push_back(name);
+            }
+        }
+
+        if (available.empty()) break;
+
+        semesters.push_back(available);
+
+        for (const auto& course : available) {
+            completed.insert(course);
+            for (const auto& neighbor : graph[course]) {
+                inDegree[neighbor]--;
+            }
+        }
+    }
+
+    return semesters;
+}
+
 void MainWindow::onRunButtonClicked() {
     if (selectedFile.isEmpty()) {
         QMessageBox::warning(this, "No File Selected", "Please select a dataset file using the 'Dataset File' button.");
@@ -178,11 +217,13 @@ void MainWindow::onRunButtonClicked() {
     timer.start();
 
     auto courses = readCurriculum(selectedFile.toStdString());
-    auto semesters = groupCoursesBySemester(courses);
+
+    // Switch between the two by commenting/uncommenting:
+    auto semesters = groupCoursesBySemester(courses); // Credit-limited
+    // auto semesters = groupCoursesBySemesterShortest(courses); // Shortest possible
 
     qint64 elapsedTime = timer.elapsed();
 
-    // Populate both tables
     populateTable1(courses);
     populateTable2(semesters, courses);
 
