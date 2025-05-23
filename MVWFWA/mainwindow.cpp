@@ -279,6 +279,22 @@ void MainWindow::onRunButtonClicked() {
 
     auto courses = readCurriculum(selectedFile.toStdString());
 
+    // --- CYCLE DETECTION USING CREDIT-AWARE FLOYD-WARSHALL ---
+    auto dist = creditAwareFloydWarshall(courses);
+    int n = courseOrder.size();
+    bool hasCycle = false;
+    for (int i = 0; i < n; ++i) {
+        if (dist[i][i] < INF && dist[i][i] > 0) {
+            hasCycle = true;
+            break;
+        }
+    }
+    if (hasCycle) {
+        QMessageBox::critical(this, "Cycle Detected", "There is a cycle in the prerequisites! Please fix your curriculum.");
+        return;
+    }
+    // ---------------------------------------------------------
+
     // Switch between the two by commenting/uncommenting:
     auto semesters = groupCoursesBySemester(courses); // Credit-limited
     // auto semesters = groupCoursesBySemesterShortest(courses); // Shortest possible
@@ -292,7 +308,40 @@ void MainWindow::onRunButtonClicked() {
     ui->orderLabel->setText(order);
 
     // Save the current "Taken" state to CSV automatically
-    saveCurriculumWithTaken(selectedFile.toStdString(), courses); // <-- Add this line
+    saveCurriculumWithTaken(selectedFile.toStdString(), courses);
+}
+
+// Returns a matrix where result[i][j] is the minimum total credits to go from course i to course j
+std::vector<std::vector<int>> MainWindow::creditAwareFloydWarshall(const std::map<std::string, Course>& courses) {
+    int n = courseOrder.size();
+    std::map<std::string, int> idx;
+    for (int i = 0; i < n; ++i) idx[courseOrder[i]] = i;
+
+    std::vector<std::vector<int>> dist(n, std::vector<int>(n, INF));
+    // Initialize: 0 to self, direct edges = credits of target course
+    for (int i = 0; i < n; ++i) dist[i][i] = 0;
+    for (const auto& [name, course] : courses) {
+        int u = idx[name];
+        for (const auto& prereq : course.prerequisites) {
+            if (idx.count(prereq)) {
+                int v = idx[prereq];
+                dist[v][u] = course.credits; // cost to take 'name' after 'prereq' is 'name's credits
+            }
+        }
+    }
+
+    // Floyd-Warshall with vertex weights (credits)
+    for (int k = 0; k < n; ++k) {
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                if (dist[i][k] < INF && dist[k][j] < INF) {
+                    int throughK = dist[i][k] + dist[k][j] + courses.at(courseOrder[k]).credits;
+                    if (throughK < dist[i][j]) dist[i][j] = throughK;
+                }
+            }
+        }
+    }
+    return dist;
 }
 
 void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {

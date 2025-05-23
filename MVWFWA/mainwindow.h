@@ -43,6 +43,8 @@ private:
     std::vector<std::vector<std::string>> groupCoursesBySemesterShortest(const std::map<std::string, Course>& courses);
     void populateTable1(const std::map<std::string, Course>& courses);
     void populateTable2(const std::vector<std::vector<std::string>>& semesters, const std::map<std::string, Course>& courses);
+    std::vector<std::vector<int>> creditAwareFloydWarshall(const std::map<std::string, Course>& courses);
+
 };
 
 #endif // MAINWINDOW_H
