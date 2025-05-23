@@ -59,12 +59,28 @@ void MainWindow::onTable1ItemChanged(QTableWidgetItem* item) {
         } else {
             takenCourses.erase(courseName.toStdString());
         }
+        // Save immediately after change, using current table data
+        if (!selectedFile.isEmpty()) {
+            std::map<std::string, Course> courses;
+            for (int row = 0; row < ui->tableWidget1->rowCount(); ++row) {
+                Course course;
+                course.name = ui->tableWidget1->item(row, 0)->text().toStdString();
+                course.credits = ui->tableWidget1->item(row, 1)->text().toInt();
+                QString prereqStr = ui->tableWidget1->item(row, 2)->text();
+                for (const QString& prereq : prereqStr.split(';', Qt::SkipEmptyParts)) {
+                    course.prerequisites.push_back(prereq.trimmed().toStdString());
+                }
+                courses[course.name] = course;
+            }
+            saveCurriculumWithTaken(selectedFile.toStdString(), courses);
+        }
     }
 }
 
 std::map<std::string, Course> MainWindow::readCurriculum(const std::string& filename) {
     std::map<std::string, Course> courses;
-    courseOrder.clear(); // <-- clear previous order
+    courseOrder.clear();
+    takenCourses.clear(); // Clear previous taken courses
     std::ifstream file(filename);
     std::string line;
 
@@ -81,15 +97,17 @@ std::map<std::string, Course> MainWindow::readCurriculum(const std::string& file
         }
 
         std::stringstream ss(line);
-        std::string name, creditsStr, prereqStr;
+        std::string name, creditsStr, prereqStr, takenStr;
 
         std::getline(ss, name, ',');
         std::getline(ss, creditsStr, ',');
         std::getline(ss, prereqStr, ',');
+        std::getline(ss, takenStr, ','); // Try to read the 4th column
 
         name.erase(name.find_last_not_of(" \t\n\r") + 1);
         creditsStr.erase(creditsStr.find_last_not_of(" \t\n\r") + 1);
         prereqStr.erase(prereqStr.find_last_not_of(" \t\n\r") + 1);
+        takenStr.erase(takenStr.find_last_not_of(" \t\n\r") + 1);
 
         int credits = 0;
         try {
@@ -113,10 +131,41 @@ std::map<std::string, Course> MainWindow::readCurriculum(const std::string& file
         }
 
         courses[name] = course;
-        courseOrder.push_back(name); // <-- preserve order
+        courseOrder.push_back(name);
+
+        // If the 4th column is present and true, mark as taken
+        if (!takenStr.empty() && (takenStr == "1" || takenStr == "true" || takenStr == "True" || takenStr == "TRUE")) {
+            takenCourses.insert(name);
+        }
     }
 
     return courses;
+}
+
+void MainWindow::saveCurriculumWithTaken(const std::string& filename, const std::map<std::string, Course>& courses) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        QMessageBox::critical(this, "File Error", "Unable to save the file: " + QString::fromStdString(filename));
+        return;
+    }
+
+    for (const auto& name : courseOrder) {
+        const auto& course = courses.at(name);
+        file << course.name << "," << course.credits << ",";
+        for (size_t i = 0; i < course.prerequisites.size(); ++i) {
+            file << course.prerequisites[i];
+            if (i + 1 < course.prerequisites.size()) file << ";";
+        }
+        file << ",";
+        file << (takenCourses.count(name) ? "1" : "0") << "\n";
+    }
+    file.close();
+}
+
+void MainWindow::onSaveButtonClicked() {
+    if (selectedFile.isEmpty()) return;
+    auto courses = readCurriculum(selectedFile.toStdString());
+    saveCurriculumWithTaken(selectedFile.toStdString(), courses);
 }
 
 // Helper: Try all combinations of available courses to get as close as possible to 24 or 23 credits
@@ -241,11 +290,15 @@ void MainWindow::onRunButtonClicked() {
 
     QString order = "Execution Time: " + QString::number(elapsedTime) + " ms";
     ui->orderLabel->setText(order);
+
+    // Save the current "Taken" state to CSV automatically
+    saveCurriculumWithTaken(selectedFile.toStdString(), courses); // <-- Add this line
 }
 
 void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {
-    ui->tableWidget1->clear();
+    ui->tableWidget1->blockSignals(true); // Prevent recursive signals
 
+    ui->tableWidget1->clear();
     ui->tableWidget1->setRowCount(courses.size());
     ui->tableWidget1->setColumnCount(4);
     ui->tableWidget1->setHorizontalHeaderLabels({"Course", "Credits", "Prerequisites", "Taken"});
@@ -279,6 +332,8 @@ void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {
     ui->tableWidget1->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     ui->tableWidget1->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->tableWidget1->resizeRowsToContents();
+
+    ui->tableWidget1->blockSignals(false); // Re-enable signals
 }
 
 void MainWindow::populateTable2(const std::vector<std::vector<std::string>>& semesters, const std::map<std::string, Course>& courses) {

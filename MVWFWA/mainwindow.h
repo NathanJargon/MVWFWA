@@ -29,14 +29,16 @@ private slots:
     void onFileButtonClicked();
     void onRunButtonClicked();
     void onTable1ItemChanged(QTableWidgetItem* item); // Add this line
+    void onSaveButtonClicked(); // Add this line
 
 private:
     Ui::MainWindow *ui;
     QString selectedFile;
 
     std::vector<std::string> courseOrder;
-    std::set<std::string> takenCourses; // <-- Add this line!
+    std::set<std::string> takenCourses;
     std::map<std::string, Course> readCurriculum(const std::string& filename);
+    void saveCurriculumWithTaken(const std::string& filename, const std::map<std::string, Course>& courses); // <-- Add this line!
     std::vector<std::vector<std::string>> groupCoursesBySemester(const std::map<std::string, Course>& courses);
     std::vector<std::vector<std::string>> groupCoursesBySemesterShortest(const std::map<std::string, Course>& courses);
     void populateTable1(const std::map<std::string, Course>& courses);
