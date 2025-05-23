@@ -10,6 +10,7 @@
 #include <queue>
 #include <limits>
 #include <algorithm>
+#include <QTableWidgetItem>
 
 const int INF = std::numeric_limits<int>::max();
 
@@ -19,9 +20,9 @@ MainWindow::MainWindow(QWidget *parent) :
     selectedFile("") {
     ui->setupUi(this);
 
-    // Connect the buttons to their slots
     connect(ui->runButton, &QPushButton::clicked, this, &MainWindow::onRunButtonClicked);
     connect(ui->fileButton, &QPushButton::clicked, this, &MainWindow::onFileButtonClicked);
+    connect(ui->tableWidget1, &QTableWidget::itemChanged, this, &MainWindow::onTable1ItemChanged); // Add this line
 }
 
 MainWindow::~MainWindow() {
@@ -49,6 +50,17 @@ void MainWindow::onFileButtonClicked() {
 
 // Add this member to your MainWindow class:
 // std::vector<std::string> courseOrder;
+
+void MainWindow::onTable1ItemChanged(QTableWidgetItem* item) {
+    if (item->column() == 3) { // "Taken" column
+        QString courseName = ui->tableWidget1->item(item->row(), 0)->text();
+        if (item->checkState() == Qt::Checked) {
+            takenCourses.insert(courseName.toStdString());
+        } else {
+            takenCourses.erase(courseName.toStdString());
+        }
+    }
+}
 
 std::map<std::string, Course> MainWindow::readCurriculum(const std::string& filename) {
     std::map<std::string, Course> courses;
@@ -129,7 +141,7 @@ std::vector<std::vector<std::string>> MainWindow::groupCoursesBySemester(const s
         // Find all available courses in CSV order
         std::vector<std::string> available;
         for (const auto& name : courseOrder) {
-            if (inDegree[name] == 0 && completed.find(name) == completed.end()) {
+            if (inDegree[name] == 0 && completed.find(name) == completed.end() && takenCourses.find(name) == takenCourses.end()) {
                 available.push_back(name);
             }
         }
@@ -234,14 +246,10 @@ void MainWindow::onRunButtonClicked() {
 void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {
     ui->tableWidget1->clear();
 
-    // Set the number of rows and columns
     ui->tableWidget1->setRowCount(courses.size());
-    ui->tableWidget1->setColumnCount(3); // Name, Credits, Prerequisites
+    ui->tableWidget1->setColumnCount(4);
+    ui->tableWidget1->setHorizontalHeaderLabels({"Course", "Credits", "Prerequisites", "Taken"});
 
-    // Set headers for columns
-    ui->tableWidget1->setHorizontalHeaderLabels({"Course", "Credits", "Prerequisites"});
-
-    // Populate the table
     int row = 0;
     for (const auto& [courseName, course] : courses) {
         ui->tableWidget1->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(course.name)));
@@ -252,13 +260,22 @@ void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {
             prerequisites += QString::fromStdString(prereq) + "; ";
         }
         if (!prerequisites.isEmpty()) {
-            prerequisites.chop(2); // Remove trailing "; "
+            prerequisites.chop(2);
         }
         ui->tableWidget1->setItem(row, 2, new QTableWidgetItem(prerequisites));
+
+        // Set checkbox state based on takenCourses
+        QTableWidgetItem* takenItem = new QTableWidgetItem();
+        if (takenCourses.count(course.name)) {
+            takenItem->setCheckState(Qt::Checked);
+        } else {
+            takenItem->setCheckState(Qt::Unchecked);
+        }
+        ui->tableWidget1->setItem(row, 3, takenItem);
+
         row++;
     }
 
-    // Stretch columns to fit the entire width
     ui->tableWidget1->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     ui->tableWidget1->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->tableWidget1->resizeRowsToContents();

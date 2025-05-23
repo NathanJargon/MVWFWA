@@ -4,12 +4,14 @@
 #include <QMainWindow>
 #include <map>
 #include <vector>
+#include <QTableWidgetItem>
 #include <string>
 
 struct Course {
     std::string name;
     int credits;
     std::vector<std::string> prerequisites;
+    std::set<std::string> takenCourses;
 };
 
 namespace Ui {
@@ -26,15 +28,17 @@ public:
 private slots:
     void onFileButtonClicked();
     void onRunButtonClicked();
+    void onTable1ItemChanged(QTableWidgetItem* item); // Add this line
 
 private:
     Ui::MainWindow *ui;
     QString selectedFile;
 
     std::vector<std::string> courseOrder;
+    std::set<std::string> takenCourses; // <-- Add this line!
     std::map<std::string, Course> readCurriculum(const std::string& filename);
     std::vector<std::vector<std::string>> groupCoursesBySemester(const std::map<std::string, Course>& courses);
-    std::vector<std::vector<std::string>> groupCoursesBySemesterShortest(const std::map<std::string, Course>& courses); // <-- Add this line
+    std::vector<std::vector<std::string>> groupCoursesBySemesterShortest(const std::map<std::string, Course>& courses);
     void populateTable1(const std::map<std::string, Course>& courses);
     void populateTable2(const std::vector<std::vector<std::string>>& semesters, const std::map<std::string, Course>& courses);
 };
