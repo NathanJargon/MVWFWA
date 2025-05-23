@@ -345,14 +345,21 @@ std::vector<std::vector<int>> MainWindow::creditAwareFloydWarshall(const std::ma
 }
 
 void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {
-    ui->tableWidget1->blockSignals(true); // Prevent recursive signals
+    // Compute Floyd-Warshall matrix for analysis
+    auto dist = creditAwareFloydWarshall(courses);
+
+    ui->tableWidget1->blockSignals(true);
 
     ui->tableWidget1->clear();
     ui->tableWidget1->setRowCount(courses.size());
-    ui->tableWidget1->setColumnCount(4);
-    ui->tableWidget1->setHorizontalHeaderLabels({"Course", "Credits", "Prerequisites", "Taken"});
+    ui->tableWidget1->setColumnCount(5); // Add one more column
+    ui->tableWidget1->setHorizontalHeaderLabels({"Course", "Credits", "Prereq", "Courses Taken", "Max Prereq Chain Credits"});
 
     int row = 0;
+    int n = courseOrder.size();
+    std::map<std::string, int> idx;
+    for (int i = 0; i < n; ++i) idx[courseOrder[i]] = i;
+
     for (const auto& [courseName, course] : courses) {
         ui->tableWidget1->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(course.name)));
         ui->tableWidget1->setItem(row, 1, new QTableWidgetItem(QString::number(course.credits)));
@@ -366,7 +373,6 @@ void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {
         }
         ui->tableWidget1->setItem(row, 2, new QTableWidgetItem(prerequisites));
 
-        // Set checkbox state based on takenCourses
         QTableWidgetItem* takenItem = new QTableWidgetItem();
         if (takenCourses.count(course.name)) {
             takenItem->setCheckState(Qt::Checked);
@@ -375,6 +381,16 @@ void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {
         }
         ui->tableWidget1->setItem(row, 3, takenItem);
 
+        // Compute max prereq chain credits for this course
+        int maxCredits = 0;
+        int col = idx[course.name];
+        for (int i = 0; i < n; ++i) {
+            if (i != col && dist[i][col] < INF && dist[i][col] > maxCredits) {
+                maxCredits = dist[i][col];
+            }
+        }
+        ui->tableWidget1->setItem(row, 4, new QTableWidgetItem(QString::number(maxCredits)));
+
         row++;
     }
 
@@ -382,7 +398,7 @@ void MainWindow::populateTable1(const std::map<std::string, Course>& courses) {
     ui->tableWidget1->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->tableWidget1->resizeRowsToContents();
 
-    ui->tableWidget1->blockSignals(false); // Re-enable signals
+    ui->tableWidget1->blockSignals(false);
 }
 
 void MainWindow::populateTable2(const std::vector<std::vector<std::string>>& semesters, const std::map<std::string, Course>& courses) {
